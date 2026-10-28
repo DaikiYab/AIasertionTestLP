@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>ことり堂</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* テストの再現性のため、OSのダーク/ライト設定に関わらず常にライト表示に固定 */
+  :root {
+    color-scheme: light;
+    --ink: #1C2B2E;
+    --ink-soft: #5B6B6E;
+    --paper: #F3F6F5;
+    --surface: #FFFFFF;
+    --line: #CBD5D3;
+    --shop: #D9A22B;
+    --primary: #2563EB;
+    --font: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.7; }
+  a { color: inherit; }
+  :focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+
+  header { background: var(--surface); border-bottom: 1px solid var(--line); }
+  .bar { max-width: 960px; margin: 0 auto; padding: 20px 24px 0; }
+  .logo { display: flex; align-items: baseline; gap: 12px; margin: 0; font-size: 28px; font-weight: 700; letter-spacing: .04em; }
+  .logo::before { content: ""; width: 14px; height: 14px; border-radius: 50% 50% 50% 0; background: var(--shop); transform: rotate(-45deg); align-self: center; }
+  .logo small { font-size: 14px; font-weight: 400; color: var(--ink-soft); letter-spacing: 0; }
+  nav ul { display: flex; gap: 4px; list-style: none; margin: 16px 0 0; padding: 0; overflow-x: auto; }
+  nav a { display: block; padding: 10px 14px; text-decoration: none; color: var(--ink-soft); border-bottom: 3px solid transparent; white-space: nowrap; }
+  nav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--shop); font-weight: 700; }
+
+  main { max-width: 960px; margin: 0 auto; padding: 28px 24px 64px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  .lead { color: var(--ink-soft); margin: 0 0 24px; }
+  #load-status { font-size: 13px; color: var(--ink-soft); margin: 0 0 16px; }
+
+  /* シーン1:商品グリッド */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+  .item { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .frame { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 6px; background: #EEF2F1; display: flex; align-items: center; justify-content: center; }
+  .frame img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .item h2 { font-size: 16px; margin: 10px 0 0; }
+  .price { margin: 0; font-weight: 700; }
+  .skeleton .frame, .skeleton .sk-line { background: linear-gradient(90deg, #E3E9E8 25%, #EEF2F1 50%, #E3E9E8 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; }
+  .sk-line { height: 14px; border-radius: 4px; margin-top: 12px; }
+  .sk-line.short { width: 40%; }
+  .fade-in { animation: fade .6s ease-out; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+  /* シーン2:お知らせ */
+  .feed { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  .feed li { display: flex; justify-content: space-between; gap: 16px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+  .feed li:last-child { border-bottom: 0; }
+  .feed time { color: var(--ink-soft); white-space: nowrap; font-size: 14px; }
+
+  /* シーン3:注文履歴 */
+  .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--line); }
+  th { font-size: 14px; color: var(--ink-soft); font-weight: 500; }
+  tr:last-child td { border-bottom: 0; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .btn { font: inherit; font-size: 14px; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--ink); background: var(--surface); color: var(--ink); cursor: pointer; }
+  .chart-box { margin-top: 28px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .chart-box h2 { font-size: 16px; margin: 0 0 8px; }
+  canvas { width: 100%; max-width: 640px; height: auto; display: block; }
+
+  /* シーン4:商品詳細 */
+  .detail { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; }
+  @media (max-width: 680px) { .detail { grid-template-columns: 1fr; } }
+  .detail .frame { border-radius: 10px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; background: #FFF3D6; font-size: 14px; }
+  .detail h2 { font-size: 22px; margin: 8px 0 4px; }
+  .detail .price { font-size: 22px; }
+  .cart { font: inherit; font-weight: 700; margin-top: 16px; padding: 12px 28px; border: 0; border-radius: 8px; color: #FFFFFF; background: var(--primary); cursor: pointer; }
+  .staff { margin-top: 24px; padding: 18px 20px; border-radius: 10px; background: #1E2A2E; color: #E8EEF0; }
+  .staff h3 { font-size: 15px; margin: 0 0 6px; }
+  .staff p { margin: 0; }
+
+  /* シーン5:仮想スクロール一覧 */
+  .vlist { height: 360px; overflow-y: auto; position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  .vrow { position: absolute; left: 0; right: 0; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid var(--line); }
+  .vrow span { font-variant-numeric: tabular-nums; }
+
+  @media (prefers-reduced-motion: reduce) { .skeleton .frame, .skeleton .sk-line, .fade-in { animation: none; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <p class="logo">ことり堂 <small>暮らしの雑貨</small></p>
+    <nav aria-label="ページ">
+      <ul id="nav"></ul>
+    </nav>
+  </div>
+</header>
+<main id="main">
+  <h1 id="scene-title"></h1>
+  <p class="lead" id="scene-lead"></p>
+  <p id="load-status" role="status">読み込み中…</p>
+  <div id="scene"></div>
+</main>
+
+<script>
+(() => {
+  // ---- パラメータ ----
+  // scene=1..5 / broken=1 で崩れあり / delay=ミリ秒(シーン1の読み込み時間, 既定2000)
+  const params = new URLSearchParams(location.search);
+  const scene = ['1', '2', '3', '4', '5'].includes(params.get('scene')) ? Number(params.get('scene')) : 1;
+  const broken = params.get('broken') === '1';
+  const delayRaw = parseInt(params.get('delay') ?? '2000', 10);
+  const delay = Number.isFinite(delayRaw) ? Math.min(Math.max(delayRaw, 0), 20000) : 2000;
+  // 崩れの有無は画面に出さない(AIの判定にヒントを与えないため)。属性にのみ記録
+  document.documentElement.dataset.mode = broken ? 'b' : 'n';
+
+  const scenes = {
+    1: { nav: '新着アイテム', title: '新着アイテム', lead: '今週入荷した商品です。' },
+    2: { nav: 'お知らせ', title: 'お知らせ', lead: 'ことり堂からのお知らせです。' },
+    3: { nav: '注文履歴', title: '注文履歴', lead: 'これまでのご注文と月別のお買い上げ金額です。' },
+    4: { nav: '商品詳細', title: '商品詳細', lead: '' },
+    5: { nav: '全注文一覧', title: '全注文一覧', lead: '1,000件の注文をスクロールして確認できます。' },
+  };
+
+  // ナビ(リンクに broken を含めない:UIツリー経由でAIにヒントを与えないため)
+  const nav = document.getElementById('nav');
+  Object.entries(scenes).forEach(([n, s]) => {
+    const li = document.createElement('li');
+    const a = document.createElement('a');
+    a.href = `?scene=${n}`;
+    a.id = `nav-${n}`;
+    a.textContent = s.nav;
+    if (Number(n) === scene) a.setAttribute('aria-current', 'page');
+    li.appendChild(a);
+    nav.appendChild(li);
+  });
+
+  document.getElementById('scene-title').textContent = scenes[scene].title;
+  document.getElementById('scene-lead').textContent = scenes[scene].lead;
+  document.title = `${scenes[scene].title} | ことり堂`;
+  const root = document.getElementById('scene');
+  const status = document.getElementById('load-status');
+  const done = () => { status.textContent = '読み込み完了'; status.dataset.ready = 'true'; };
+
+  // 商品画像(外部画像を使わずインラインSVGで生成)
+  const productSvg = (bg, fg, shape) => {
+    const shapes = {
+      mug: `<rect x="60" y="70" width="70" height="80" rx="8" fill="${fg}"/><path d="M130 90 h14 a14 14 0 0 1 0 28 h-14" fill="none" stroke="${fg}" stroke-width="10"/>`,
+      book: `<rect x="62" y="50" width="76" height="100" rx="4" fill="${fg}"/><rect x="72" y="62" width="56" height="8" fill="${bg}"/>`,
+      plant: `<rect x="76" y="110" width="48" height="44" rx="4" fill="${fg}"/><ellipse cx="100" cy="88" rx="16" ry="30" fill="${fg}"/><ellipse cx="78" cy="96" rx="12" ry="22" fill="${fg}" transform="rotate(-30 78 96)"/><ellipse cx="122" cy="96" rx="12" ry="22" fill="${fg}" transform="rotate(30 122 96)"/>`,
+      lamp: `<path d="M70 60 h60 l14 50 h-88 z" fill="${fg}"/><rect x="96" y="110" width="8" height="34" fill="${fg}"/><rect x="74" y="144" width="52" height="8" rx="3" fill="${fg}"/>`,
+      towel: `<rect x="56" y="60" width="88" height="90" rx="6" fill="${fg}"/><rect x="56" y="126" width="88" height="8" fill="${bg}"/>`,
+      clock: `<circle cx="100" cy="100" r="46" fill="${fg}"/><path d="M100 72 v30 l18 12" stroke="${bg}" stroke-width="6" fill="none" stroke-linecap="round"/>`,
+    };
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" fill="${bg}"/>${shapes[shape]}</svg>`;
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  };
+
+  const products = [
+    { id: 'p1', name: '白磁のマグカップ', price: 1980, bg: '#E7EEF3', fg: '#7A9BB0', shape: 'mug' },
+    { id: 'p2', name: '方眼ノート A5', price: 660, bg: '#F1ECE2', fg: '#B98A4A', shape: 'book' },
+    { id: 'p3', name: 'ミニ観葉植物', price: 2480, bg: '#E5EFE6', fg: '#5E8F65', shape: 'plant' },
+    { id: 'p4', name: '真鍮のデスクライト', price: 8800, bg: '#F2EEDF', fg: '#B4933B', shape: 'lamp' },
+    { id: 'p5', name: 'リネンのハンドタオル', price: 1320, bg: '#EDE8EF', fg: '#8C7799', shape: 'towel' },
+    { id: 'p6', name: '木枠の掛け時計', price: 5500, bg: '#EFE7E1', fg: '#8E6A52', shape: 'clock' },
+  ];
+  const yen = (n) => '¥' + n.toLocaleString('ja-JP');
+
+  // ---- シーン1:非同期描画 ----
+  function scene1() {
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    grid.innerHTML = products.map(() => `
+      <div class="item skeleton" aria-hidden="true">
+        <div class="frame"></div><div class="sk-line"></div><div class="sk-line short"></div>
+      </div>`).join('');
+    root.appendChild(grid);
+
+    setTimeout(() => {
+      grid.innerHTML = products.map((p) => {
+        // 崩れあり:4番目の商品画像が枠からはみ出す
+        const overflow = broken && p.id === 'p4';
+        const imgStyle = overflow ? ' style="width:150%;height:150%;max-width:none;object-fit:cover;"' : '';
+        const frameStyle = overflow ? ' style="overflow:visible;"' : ' style="overflow:hidden;"';
+        return `
+          <article class="item fade-in" id="item-${p.id}">
+            <div class="frame"${frameStyle}><img src="${productSvg(p.bg, p.fg, p.shape)}" alt="${p.name}"${imgStyle}></div>
+            <h2>${p.name}</h2>
+            <p class="price">${yen(p.price)}</p>
+          </article>`;
+      }).join('');
+      done();
+    }, delay);
+  }
+
+  // ---- シーン2:日付・相対表記 ----
+  function scene2() {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const fmt = (d) => {
+      const diffMin = Math.floor((now - d) / 60000);
+      if (diffMin < 60) return `${diffMin}分前`;
+      if (diffMin < 60 * 12) return `${Math.floor(diffMin / 60)}時間前`;
+      const y = new Date(now); y.setDate(now.getDate() - 1);
+      if (d.toDateString() === now.toDateString()) return `今日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      if (d.toDateString() === y.toDateString()) return `昨日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      return `${d.getMonth() + 1}月${d.getDate()}日`;
+    };
+    const minsAgo = (m) => new Date(now.getTime() - m * 60000);
+    const posts = [
+      { id: 'n1', title: '白磁のマグカップが再入荷しました', at: minsAgo(3) },
+      { id: 'n2', title: '年末年始の営業時間について', at: minsAgo(60 * 5) },
+      { id: 'n3', title: 'ギフトラッピングを無料にしました', at: minsAgo(60 * 26) },
+      { id: 'n4', title: '送料の改定のお知らせ', at: minsAgo(60 * 24 * 4) },
+      { id: 'n5', title: '秋のセールは終了しました', at: minsAgo(60 * 24 * 9) },
+    ];
+    // 崩れあり:2番目と3番目の並び順が入れ替わる
+    if (broken) [posts[1], posts[2]] = [posts[2], posts[1]];
+    const ul = document.createElement('ul');
+    ul.className = 'feed';
+    ul.innerHTML = posts.map((p) => `
+      <li id="post-${p.id}"><span>${p.title}</span><time datetime="${p.at.toISOString()}">${fmt(p.at)}</time></li>`).join('');
+    root.appendChild(ul);
+    done();
+  }
+
+  // ---- シーン3:DOMと見た目の乖離 ----
+  function scene3() {
+    const orders = [
+      ['20261021-0012', '2026/10/21', '白磁のマグカップ ほか2点', 4620],
+      ['20261003-0048', '2026/10/03', '方眼ノート A5', 660],
+      ['20260917-0007', '2026/09/17', '真鍮のデスクライト', 8800],
+      ['20260830-0031', '2026/08/30', 'リネンのハンドタオル ほか1点', 2640],
+      ['20260812-0019', '2026/08/12', 'ミニ観葉植物', 2480],
+      ['20260725-0003', '2026/07/25', '木枠の掛け時計', 5500],
+    ];
+    const rows = orders.map(([no, date, name, total], i) => {
+      // 崩れあり:4行目の詳細ボタンが透明(DOM上は存在する)
+      const hidden = broken && i === 3 ? ' style="opacity:0;"' : '';
+      return `<tr id="order-row-${i + 1}"><td>${no}</td><td>${date}</td><td>${name}</td><td class="num">${yen(total)}</td>
+        <td><button class="btn" type="button" id="order-detail-${i + 1}"${hidden}>詳細</button></td></tr>`;
+    }).join('');
+    root.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>注文番号</th><th>注文日</th><th>商品</th><th class="num">合計</th><th><span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">操作</span></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <section class="chart-box">
+        <h2>月別のお買い上げ金額(2026年)</h2>
+        <canvas id="sales-chart" width="640" height="300" aria-label="月別のお買い上げ金額のグラフ" role="img"></canvas>
+      </section>`;
+
+    // Canvas描画(UIツリーには数値が現れない)
+    const months = ['1月', '2月', '3月', '4月', '5月', '6月'];
+    // 崩れあり:5月の値だけ下がる
+    const values = broken ? [120, 135, 150, 170, 140, 215] : [120, 135, 150, 170, 190, 215];
+    const c = document.getElementById('sales-chart');
+    const ctx = c.getContext('2d');
+    const font = getComputedStyle(document.body).fontFamily;
+    const W = c.width, H = c.height, padL = 48, padB = 36, padT = 24, max = 250;
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#CBD5D3'; ctx.lineWidth = 1;
+    ctx.font = `13px ${font}`; ctx.fillStyle = '#5B6B6E';
+    for (let v = 0; v <= max; v += 50) {
+      const y = H - padB - (v / max) * (H - padB - padT);
+      ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - 12, y); ctx.stroke();
+      ctx.textAlign = 'right'; ctx.fillText(String(v), padL - 8, y + 4);
+    }
+    const slot = (W - padL - 12) / values.length;
+    values.forEach((v, i) => {
+      const h = (v / max) * (H - padB - padT);
+      const x = padL + slot * i + slot * 0.2;
+      ctx.fillStyle = '#D9A22B';
+      ctx.fillRect(x, H - padB - h, slot * 0.6, h);
+      ctx.fillStyle = '#1C2B2E'; ctx.textAlign = 'center';
+      ctx.fillText(String(v), x + slot * 0.3, H - padB - h - 6);
+      ctx.fillStyle = '#5B6B6E';
+      ctx.fillText(months[i], x + slot * 0.3, H - padB + 20);
+    });
+    ctx.textAlign = 'left'; ctx.fillText('(千円)', 4, 14);
+    done();
+  }
+
+  // ---- シーン4:微妙な視覚差 ----
+  function scene4() {
+    const p = products[0];
+    // 崩れあり:ボタンが紫寄りの青、スタッフ欄の文字が低コントラスト、絵文字が👍
+    const btnColor = broken ? '#4F46E5' : '#2563EB';
+    const staffText = broken ? '#4A5A60' : '#E8EEF0';
+    const emoji = broken ? '👍' : '👆';
+    root.innerHTML = `
+      <div class="detail">
+        <div class="frame" style="overflow:hidden;"><img src="${productSvg(p.bg, p.fg, p.shape)}" alt="${p.name}"></div>
+        <div>
+          <span class="badge" id="recommend-badge">${emoji} スタッフのおすすめ</span>
+          <h2>${p.name}</h2>
+          <p class="price">${yen(p.price)}<small style="font-weight:400;color:var(--ink-soft);"> 税込</small></p>
+          <p>薄く軽い白磁のマグ。容量は320mlで、電子レンジと食洗機に対応しています。</p>
+          <button class="cart" type="button" id="add-to-cart" style="background:${btnColor};">カートに入れる</button>
+          <section class="staff" id="staff-comment" style="color:${staffText};">
+            <h3>スタッフのひとこと</h3>
+            <p>口当たりがやわらかく、毎朝のコーヒーがすこし楽しみになります。</p>
+          </section>
+        </div>
+      </div>`;
+    done();
+  }
+
+  // ---- シーン5:仮想スクロール ----
+  function scene5() {
+    const TOTAL = 1000, ROW = 44, BUFFER = 4;
+    // 崩れあり:30行目(初期表示では画面外)だけ詳細ボタンがない
+    const missing = broken ? 30 : -1;
+    const list = document.createElement('div');
+    list.className = 'vlist';
+    list.id = 'order-list';
+    list.setAttribute('role', 'list');
+    const spacer = document.createElement('div');
+    spacer.style.height = `${TOTAL * ROW}px`;
+    list.appendChild(spacer);
+    root.appendChild(list);
+
+    const render = () => {
+      const first = Math.max(0, Math.floor(list.scrollTop / ROW) - BUFFER);
+      const last = Math.min(TOTAL, Math.ceil((list.scrollTop + list.clientHeight) / ROW) + BUFFER);
+      let html = '';
+      for (let i = first; i < last; i++) {
+        const n = i + 1;
+        const no = `2026${String(1000 - i).padStart(4, '0')}`;
+        const btn = n === missing ? '' : `<button class="btn" type="button" id="vrow-detail-${n}">詳細</button>`;
+        html += `<div class="vrow" role="listitem" id="vrow-${n}" style="top:${i * ROW}px;"><span>${n}. 注文番号 ${no}</span>${btn}</div>`;
+      }
+      spacer.innerHTML = html;
+    };
+    list.addEventListener('scroll', () => requestAnimationFrame(render), { passive: true });
+    render();
+    done();
+  }
+
+  ({ 1: scene1, 2: scene2, 3: scene3, 4: scene4, 5: scene5 })[scene]();
+})();
+</script>
+</body>
+</html>
